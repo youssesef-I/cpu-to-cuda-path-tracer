@@ -1,4 +1,3 @@
-# CPU-to-CUDA PATH TRACER
 # CPU-to-CUDA Path Tracer
 
 A path tracer implemented first in C++ on the CPU, then ported to CUDA and optimized for GPU execution.
