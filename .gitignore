@@ -1,0 +1,39 @@
+# Compiled binaries
+rt
+rtgpu
+*.out
+*.exe
+
+# Object files
+*.o
+*.obj
+
+# Generated renders
+*.ppm
+
+# CUDA-generated files
+*.ptx
+*.cubin
+*.fatbin
+
+# CUDA / NVIDIA profiling output
+*.ncu-rep
+*.nsys-rep
+*.qdrep
+
+# Debugging / profiling
+*.prof
+*.log
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+
+# IDE configuration
+.vscode/
+.idea/
+
+# OS metadata
+.DS_Store
+Thumbs.db
