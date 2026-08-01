@@ -1,1 +1,1 @@
-# cpu-to-cuda-path-tracer
+# CPU-to-CUDA PATH TRACER
