@@ -1,0 +1,4 @@
+implementation,device,threads,precision,optimization,timing_scope,resolution,samples_per_pixel,max_bounces,time_ms,speedup_vs_cpu
+CPU,Intel Core i7-13700K,1,double,baseline -O2,render time,1200x675,500,10,22900.0,1.0
+CUDA,NVIDIA RTX 4090,GPU,float,initial CUDA port,kernel only,1200x675,500,10,18.5,1237.8
+CUDA,NVIDIA RTX 4090,GPU,float,analytic sphere sampling,kernel only,1200x675,500,10,15.2,1506.6
