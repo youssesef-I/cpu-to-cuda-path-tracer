@@ -1,30 +1,48 @@
 CXX := clang++
 NVCC := nvcc
 
+HOST_CXX ?= g++-14
+ARCH ?= sm_89
+
 CXXFLAGS := -O2
-NVCCFLAGS := -O2 -arch=sm_89 -ccbin g++-14
+NVCCFLAGS := -O2 -arch=$(ARCH) -ccbin $(HOST_CXX)
+
+CPU_TARGET := rt
+GPU_TARGET := rtgpu
+GPU_PRECISE_TARGET := rtgpu-precise
+GPU_PROFILE_TARGET := rtgpu-profile
 
 CPU_SRC := Raytrace.cpp
 GPU_SRC := Raytracer.cu
 
-CPU_BIN := rt
-GPU_BIN := rtgpu
+.PHONY: all cpu gpu precise profile clean
 
-.PHONY: all cpu gpu run-cpu run-gpu clean
+all: $(CPU_TARGET) $(GPU_TARGET)
 
-all: cpu gpu
+cpu: $(CPU_TARGET)
 
-cpu:
-	$(CXX) $(CXXFLAGS) $(CPU_SRC) -o $(CPU_BIN)
+gpu: $(GPU_TARGET)
 
-gpu:
-	$(NVCC) $(NVCCFLAGS) $(GPU_SRC) -o $(GPU_BIN)
+precise: $(GPU_PRECISE_TARGET)
 
-run-cpu: cpu
-	./$(CPU_BIN)
+profile: $(GPU_PROFILE_TARGET)
 
-run-gpu: gpu
-	./$(GPU_BIN)
+$(CPU_TARGET): $(CPU_SRC)
+	$(CXX) $(CXXFLAGS) $(CPU_SRC) -o $(CPU_TARGET)
+
+# Final optimized GPU build.
+$(GPU_TARGET): $(GPU_SRC)
+	$(NVCC) $(NVCCFLAGS) --use_fast_math $(GPU_SRC) -o $(GPU_TARGET)
+
+# Precise-math comparison build.
+$(GPU_PRECISE_TARGET): $(GPU_SRC)
+	$(NVCC) $(NVCCFLAGS) $(GPU_SRC) -o $(GPU_PRECISE_TARGET)
+
+# Optimized build with source-line information for Nsight Compute.
+$(GPU_PROFILE_TARGET): $(GPU_SRC)
+	$(NVCC) $(NVCCFLAGS) --use_fast_math -lineinfo $(GPU_SRC) -o $(GPU_PROFILE_TARGET)
 
 clean:
-	rm -f $(CPU_BIN) $(GPU_BIN) *.o *.ppm
+	rm -f $(CPU_TARGET) $(GPU_TARGET) $(GPU_PRECISE_TARGET) \
+	      $(GPU_PROFILE_TARGET) rtgpu-fastmath rtgpu-fastmath-profile \
+	      *.o image.ppm

@@ -37,3 +37,11 @@ rtgpu
 # OS metadata
 .DS_Store
 Thumbs.db
+rtgpu-precise
+rtgpu-profile
+rtgpu-fastmath
+rtgpu-fastmath-profile
+image-precise.ppm
+image-fastmath.ppm
+image-precise.png
+image-fastmath.png

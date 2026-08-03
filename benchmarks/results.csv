@@ -1,4 +1,5 @@
-implementation,device,threads,precision,optimization,timing_scope,resolution,samples_per_pixel,max_bounces,time_ms,speedup_vs_cpu
-CPU,Intel Core i7-13700K,1,double,baseline -O2,render time,1200x675,500,10,22900.0,1.0
-CUDA,NVIDIA RTX 4090,GPU,float,initial CUDA port,kernel only,1200x675,500,10,18.5,1237.8
-CUDA,NVIDIA RTX 4090,GPU,float,analytic sphere sampling,kernel only,1200x675,500,10,15.2,1506.6
+implementation,measured_time_ms,measurement_scope,speedup_vs_cpu,change_vs_previous_percent,notes
+cpu_single_threaded,22900.00,cpu_render,1.0,,clang++ -O2; single-threaded CPU baseline
+cuda_initial,18.50,gpu_kernel,1237.8,,initial CUDA port
+cuda_analytic_sampling,15.04,gpu_kernel,1522.6,18.7,10-run average; analytic uniform-sphere sampling
+cuda_fast_math,10.73,gpu_kernel,2134.2,28.7,10-run average; Nsight-guided --use_fast_math

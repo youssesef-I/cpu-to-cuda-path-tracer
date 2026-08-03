@@ -1,155 +1,167 @@
 # Benchmark Methodology
 
-This directory documents the performance measurements for the CPU and CUDA implementations of the path tracer.
+This directory records the performance measurements used in the main project
+README.
 
-The summarized measurements are stored in [`results.csv`](results.csv).
+## Test Configuration
 
-## Hardware
+- CPU: Intel Core i7-13700K
+- GPU: NVIDIA RTX 4090
+- CUDA toolkit: 12.9
+- Nsight Compute: 2025.2
+- CUDA architecture target: `sm_89`
+- Resolution: 1200 x 675
+- Samples per pixel: 500
+- Maximum ray bounces: 10
 
-* **CPU:** Intel Core i7-13700K
-* **GPU:** NVIDIA GeForce RTX 4090
-* **GPU architecture:** Ada Lovelace
-* **CUDA compute capability target:** `sm_89`
-
-## Render Configuration
-
-All reported implementations rendered the same scene using:
-
-* **Resolution:** 1200×675
-* **Samples per pixel:** 500
-* **Maximum ray bounces:** 10
-* **Scene:** One diffuse sphere above a large sphere used as the ground plane
-* **Lighting:** Procedural sky illumination
-
-The implementations use the same scene and rendering configuration, but they do not use identical numerical precision.
-
-## CPU Baseline
-
-The CPU implementation was compiled with:
+CPU build:
 
 ```sh
 clang++ -O2 Raytrace.cpp -o rt
 ```
 
-The current CPU implementation:
-
-* runs on one CPU thread
-* uses double-precision floating-point arithmetic
-* evaluates pixels through a serial loop
-
-Measured render time:
-
-```text
-22.9 seconds
-```
-
-This measurement is the baseline used for the reported speedup values.
-
-## CUDA Build
-
-The CUDA implementation was compiled with:
+Precise GPU build:
 
 ```sh
-nvcc -O2 -ccbin g++-14 -arch=sm_89 Raytracer.cu -o rtgpu
+nvcc -O2 -arch=sm_89 -ccbin g++-14 Raytracer.cu -o rtgpu-precise
 ```
 
-The CUDA implementation:
-
-* uses single-precision floating-point arithmetic
-* assigns one GPU thread to each pixel
-* stores the scene as contiguous sphere data
-* replaces recursive ray evaluation with an iterative bounce loop
-* maintains independent cuRAND state for each pixel
-
-## CUDA Timing
-
-GPU kernel execution time was measured using CUDA events.
-
-The reported GPU values measure the rendering kernel and exclude:
-
-* initial CUDA context creation
-* application startup
-* output-file encoding
-* one-time host/device setup costs
-
-This isolates rendering throughput, but it is not an end-to-end application latency measurement.
-
-### Initial CUDA Port
-
-The initial CUDA implementation used rejection sampling when generating random unit vectors.
-
-Measured kernel time:
-
-```text
-~18.5 milliseconds
-```
-
-Relative to the single-threaded CPU implementation:
-
-```text
-~1238× speedup
-```
-
-### Analytic Sphere Sampling
-
-The optimized implementation replaces the rejection-sampling loop with a fixed-work analytic construction using a uniformly sampled vertical coordinate and azimuth.
-
-Measured kernel time:
-
-```text
-~15.2 milliseconds
-```
-
-Relative to the single-threaded CPU implementation:
-
-```text
-~1507× speedup
-```
-
-Relative to the initial CUDA port, this represents an approximately:
-
-```text
-17.8% reduction in kernel execution time
-```
-
-The main README rounds this result to approximately **18%**.
-
-## Interpretation
-
-These measurements compare the current implementations, not the theoretical maximum performance of the CPU and GPU.
-
-Important limitations include:
-
-1. The CPU baseline is single-threaded.
-2. The CPU implementation uses `double`, while the CUDA implementation uses `float`.
-3. GPU measurements are kernel-only rather than end-to-end wall-clock measurements.
-4. The scene contains only two spheres and does not use an acceleration structure.
-
-A future multithreaded CPU implementation would provide a stronger CPU baseline. Additional CUDA profiling with Nsight Compute could also identify the next optimization target.
-
-## Reproducing the Builds
-
-From the repository root, build both implementations with:
+Final fast-math GPU build:
 
 ```sh
-make
+nvcc -O2 --use_fast_math -arch=sm_89 -ccbin g++-14 Raytracer.cu -o rtgpu
 ```
 
-Run the CPU implementation with:
+## Performance Progression
 
-```sh
-make run-cpu
+| Variant | Time | Notes |
+| --- | ---: | --- |
+| Single-threaded CPU | 22.9 s | CPU reference baseline |
+| Initial CUDA port | ~18.5 ms | Initial GPU implementation |
+| Analytic sphere sampling | 15.04 ms | 10-run average |
+| Fast math | 10.73 ms | 10-run average, `--use_fast_math` |
+
+Replacing rejection-based random sphere sampling with analytic uniform-sphere
+sampling reduced kernel time by approximately 18.7% relative to the initial
+CUDA implementation.
+
+After profiling the optimized kernel with NVIDIA Nsight Compute, enabling
+fast-math reduced average kernel time by a further 28.7%.
+
+From the initial CUDA implementation to the final fast-math build, kernel time
+fell by approximately 42%.
+
+## Ten-Run Timing
+
+Precise optimized build:
+
+```text
+14.6053
+15.0804
+14.8613
+15.2534
+15.3334
+14.9009
+15.4358
+14.6225
+14.5961
+15.7153
 ```
 
-Run the CUDA implementation with:
+Mean:
 
-```sh
-make run-gpu
+```text
+15.04 ms
 ```
 
-Remove generated binaries and PPM images with:
+Fast-math build:
 
-```sh
-make clean
+```text
+11.0394
+10.6803
+11.1657
+10.2437
+10.7459
+10.8420
+10.0536
+10.9711
+11.0994
+10.4479
 ```
 
+Mean:
+
+```text
+10.73 ms
+```
+
+## Nsight Compute Findings
+
+The precise optimized kernel was compute-heavy rather than
+DRAM-bandwidth-bound.
+
+Selected precise-build measurements:
+
+| Metric | Value |
+| --- | ---: |
+| Nsight kernel duration | 15.88 ms |
+| Registers per thread | 66 |
+| Theoretical occupancy | 58.33% |
+| Achieved occupancy | 50.29% |
+| Average active threads per warp | 14.38 |
+| Executed instructions | 14.05 billion |
+| Branch efficiency | 94.79% |
+| L1/TEX hit rate | 99.93% |
+
+Selected fast-math measurements:
+
+| Metric | Value |
+| --- | ---: |
+| Nsight kernel duration | 10.98 ms |
+| Registers per thread | 59 |
+| Theoretical occupancy | 66.67% |
+| Achieved occupancy | 56.08% |
+| Average active threads per warp | 16.01 |
+| Executed instructions | 9.26 billion |
+| Branch efficiency | 92.37% |
+| L1/TEX hit rate | 99.93% |
+
+Fast math reduced the measured dynamic executed-instruction count from roughly
+14.05 billion to 9.26 billion, a reduction of approximately 34%.
+
+It also reduced register demand and increased both theoretical and achieved
+occupancy.
+
+## Output Comparison
+
+The CUDA implementation initializes cuRAND deterministically for each pixel:
+
+```cpp
+curand_init(1984 + pixel_index, 0, 0, &state);
+```
+
+Because `--use_fast_math` changes floating-point semantics, its output is not
+expected to be bit-identical to the precise build.
+
+ImageMagick RMSE comparison between the two deterministic renders produced:
+
+```text
+28.0014 (0.000427275)
+```
+
+The normalized RMSE was therefore:
+
+```text
+0.000427275
+```
+
+The images were additionally inspected side-by-side for visible differences.
+
+## Timing Scope
+
+The CPU value measures the single-threaded CPU renderer while the CUDA values
+measure GPU kernel execution.
+
+The quoted CPU/GPU speedups are therefore useful project-level comparisons,
+not claims that the CPU and GPU numbers represent perfectly identical
+end-to-end timing scopes.
